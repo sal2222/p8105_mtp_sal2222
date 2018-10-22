@@ -34,11 +34,18 @@ theme_set(theme_bw() + theme(legend.position = "bottom"))
 
 I will load and tidy the data.
 
-```{r load_activity_data}
+```{r load_activity_data, message = FALSE}
 
-activity <- read_csv(file = "./data/p8105_mtp_data.csv")
+activity <- read_csv(file = "./data/p8105_mtp_data.csv") %>%
+  janitor::clean_names() %>% 
+  gather(key = daily_min, value = activity, activity_1:activity_1440) %>% 
+  mutate(daily_min = str_replace(daily_min, "activity_", ""),
+         daily_min = as.numeric(daily_min),
+         day = ordered(day, levels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", 
+"Friday", "Saturday"))) %>% 
+  arrange(week, day)
 
-
+activity
 ```
 
 
