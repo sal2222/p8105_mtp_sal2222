@@ -14,6 +14,8 @@ library(tidyverse)
 library(readxl)
 library(devtools)
 library(patchwork) #devtools::install_github("thomasp85/patchwork")
+library(wordcountaddin)
+#devtools::install_github("benmarwick/wordcountaddin", type = "source", dependencies = TRUE)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -24,6 +26,12 @@ knitr::opts_chunk$set(
 theme_set(theme_bw() + theme(legend.position = "bottom"))
 ```
 
+### Introduction
+
+
+
+### Dataset
+
 I will load and tidy the data.
 
 ```{r load_activity_data}
@@ -31,5 +39,22 @@ I will load and tidy the data.
 activity <- read_csv(file = "./data/p8105_mtp_data.csv")
 
 
+```
+
+
+
+### Activity over time
+
+
+
+
+### Day of week effect
+
+
+### Daily activity profiles
+
+
+```{r word count}
+wordcountaddin::text_stats("p8105_mtp_sal2222.Rmd")
 ```
 
