@@ -149,6 +149,27 @@ Examine the possibility that day of the week affects activity (in isolation and 
 
 Make a visualization that shows the 24-hour activity “profiles” for each day. Also visualize effects of time and day of the week on 24-hour activity profiles; incorporating smooth estimates of mean activity profiles may clarify these effects. Comment on relationships you think are interesting.
 
+```{r daily_activity_profiles}
+activity_df %>%
+  group_by(week, day) %>%
+  mutate(min_index = row_number()) %>% 
+  ggplot(aes(x = min_index, y = activity)) + 
+  geom_point(aes(color = day), alpha = .5) + 
+  labs(
+    title = "Daily activity profiles",
+    x = "Minute of day",
+    y = "Activity count"
+  ) + 
+  viridis::scale_color_viridis(
+    name = "Day of Week", 
+    discrete = TRUE
+  )
+
+
+```
+
+
+
 
 
 ```{r word count}
