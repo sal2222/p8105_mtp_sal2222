@@ -31,7 +31,7 @@ theme_set(theme_bw() + theme(legend.position = "bottom"))
 
 
 
-## Accelerometer Dataset Description
+## Accelerometer dataset description
 
 The initial dataset consists of `r read_csv(file = "./data/p8105_mtp_data.csv") %>% nrow()` observations and `r read_csv(file = "./data/p8105_mtp_data.csv") %>% ncol()` variables. This dataset  includes separate activity count variables for each minute of the day. 
 
@@ -102,6 +102,8 @@ activity_df %>%
 
 ## Activity over time
 
+I will explore the hypothesis that the participant became more active over time by first examining a scatterplot of the indexed day from 1 to 329 and the aggregated total dialy activity.  
+
 ```{r total_daily_activity_plot}
 
 activity_df %>%
@@ -112,6 +114,7 @@ activity_df %>%
   ggplot(aes(x = day_index, y = daily_activity)) + 
   geom_point(alpha = .5) +
   geom_smooth(method = lm, se = TRUE) +
+    geom_smooth(method = loess, se = FALSE, color = "black", size = 0.5) +
   labs(
     title = "Daily activity over time",
     x = "Indexed day",
@@ -121,6 +124,7 @@ activity_df %>%
 
 ```
 
+A LOESS curve and linear regression line both show increased activity over the span of the study period.  
 
 
 ```{r lm_daily_activity}
@@ -132,36 +136,45 @@ activity_df %>%
   mutate(day_index = row_number()) %>%
   lm(daily_activity ~ day_index, data = .) %>% 
   broom::tidy() %>% 
-  knitr::kable()
+  knitr::kable(digits = 2)
   
 
 ```
 
+The output from a simple linear regression model shows that the activity increase over time is statistically significant. For each one day increase, the total daily activity count increases by 573 units (p < 0.00001).  
 
-Explore the hypothesis that the participant became more active over time
 
 ## Day of week effect
 
-```{r day_of_week_effect}
+I will next examine the possibility that day of the week affects activity.
+
+First, I examine summary statistics by day of week to compare the effect in isolation.
+
+```{r day_of_week_effect_table}
 
 activity_df %>%
   group_by(day) %>% 
-  summarize(dow_mean_activity = mean(activity),
-            dow_median_activity = median(activity),
-            dow_sd_activity = sd(activity))
+  summarize(mean = mean(activity),
+            median = median(activity),
+            sd = sd(activity)) %>% 
+  knitr::kable(digits = 2)
 
+```
 
+A review of mean and median activity counts shows some variation by day of week, but there is not an apparent increase or decrease over the course of the week or difference between weekday and weekend.
 
+```{r}
 
 activity_df %>%
   group_by(week, day) %>% 
   summarize(daily_activity = sum(activity)) %>%
   ungroup() %>% 
   mutate(day_index = row_number()) %>% 
-  ggplot(aes(x = day_index, y = daily_activity)) + 
-  geom_point(aes(color = day), alpha = .5) + 
+  ggplot(aes(x = day_index, y = daily_activity, color = day)) + 
+  geom_point(alpha = .5) +
+  geom_smooth(method = lm, se = FALSE, size = 0.5) +
   labs(
-    title = "Daily activity over time",
+    title = "Daily activity over time by day of week",
     x = "Indexed day",
     y = "Total daily activity count"
   ) + 
@@ -170,7 +183,19 @@ activity_df %>%
     discrete = TRUE
   )
 ```
-Examine the possibility that day of the week affects activity (in isolation and in addition to the effect of time).
+
+Next, I will again plot activity over time, but include linear regression lines for each day of the week. Now, we see that activity increased over time for each day, but the slopes show that the rate increased more for the weekends than the weekdays. Saturday in particular started of with the lowest activity counts in the initial months, and ended the study period in the high end of activity. Friday activity was consistently a high activity day and Tuesday was consistently a lower activity day.   
+
+
+```{r day_of_week boxplot, include = FALSE}
+
+activity_df %>%
+  group_by(day) %>% 
+  ggplot(aes(x = day, y = activity)) + 
+    geom_boxplot()
+
+```
+
 
 
 
