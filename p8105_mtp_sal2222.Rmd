@@ -114,7 +114,7 @@ activity_df %>%
   ggplot(aes(x = day_index, y = daily_activity)) + 
   geom_point(alpha = .5) +
   geom_smooth(method = lm, se = TRUE) +
-    geom_smooth(method = loess, se = FALSE, color = "black", size = 0.5) +
+  geom_smooth(method = loess, se = FALSE, color = "black", size = 0.5) +
   labs(
     title = "Daily activity over time",
     x = "Indexed day",
@@ -197,11 +197,32 @@ activity_df %>%
 ```
 
 
-
-
 ## Daily activity profiles
 
 Make a visualization that shows the 24-hour activity “profiles” for each day. Also visualize effects of time and day of the week on 24-hour activity profiles; incorporating smooth estimates of mean activity profiles may clarify these effects. Comment on relationships you think are interesting.
+
+```{r daily_activity_profile}
+activity_df %>%
+  group_by(week, day) %>%
+  mutate(min_index = row_number()) %>% 
+  ungroup %>%
+  unite(week_day, week, day, sep = "_", remove = FALSE) %>% 
+  ggplot(aes(x = min_index, y = activity, color = week_day)) + 
+  geom_point(alpha = 0.3) +
+   geom_smooth(method = loess, se = FALSE, size = 0.2) +
+  labs(
+    title = "Daily activity profiles",
+    x = "Minute of day",
+    y = "Activity count"
+  ) + 
+  viridis::scale_color_viridis(
+    name = "Day of Week", 
+    discrete = TRUE
+  ) +
+   theme(legend.position = "none")
+
+
+```
 
 ```{r daily_activity_profiles}
 activity_df %>%
@@ -221,8 +242,6 @@ activity_df %>%
 
 
 ```
-
-
 
 
 
