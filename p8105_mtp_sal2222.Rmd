@@ -26,12 +26,12 @@ knitr::opts_chunk$set(
 theme_set(theme_bw() + theme(legend.position = "bottom"))
 ```
 
-### Introduction
+## Introduction
 
 
 
 
-### Accelerometer Dataset Description
+## Accelerometer Dataset Description
 
 The initial dataset consists of `r read_csv(file = "./data/p8105_mtp_data.csv") %>% nrow()` observations and `r read_csv(file = "./data/p8105_mtp_data.csv") %>% ncol()` variables. This dataset  includes separate activity count variables for each minute of the day. 
 
@@ -100,13 +100,57 @@ activity_df %>%
 
 
 
-### Activity over time
+## Activity over time
 
-```{r total_daily_activity}
+```{r total_daily_activity_plot}
 
 activity_df %>%
   group_by(week, day) %>% 
-  summarize(daily_activity = sum(activity))
+  summarize(daily_activity = sum(activity)) %>%
+  ungroup() %>% 
+  mutate(day_index = row_number()) %>% 
+  ggplot(aes(x = day_index, y = daily_activity)) + 
+  geom_point(alpha = .5) +
+  geom_smooth(method = lm, se = TRUE) +
+  labs(
+    title = "Daily activity over time",
+    x = "Indexed day",
+    y = "Total daily activity count"
+  ) 
+  
+
+```
+
+
+
+```{r lm_daily_activity}
+
+activity_df %>%
+  group_by(week, day) %>% 
+  summarize(daily_activity = sum(activity)) %>%
+  ungroup() %>% 
+  mutate(day_index = row_number()) %>%
+  lm(daily_activity ~ day_index, data = .) %>% 
+  broom::tidy() %>% 
+  knitr::kable()
+  
+
+```
+
+
+Explore the hypothesis that the participant became more active over time
+
+## Day of week effect
+
+```{r day_of_week_effect}
+
+activity_df %>%
+  group_by(day) %>% 
+  summarize(dow_mean_activity = mean(activity),
+            dow_median_activity = median(activity),
+            dow_sd_activity = sd(activity))
+
+
 
 
 activity_df %>%
@@ -126,26 +170,11 @@ activity_df %>%
     discrete = TRUE
   )
 ```
-
-Explore the hypothesis that the participant became more active over time
-
-### Day of week effect
-
-```{r day_of_week_effect}
-
-activity_df %>%
-  group_by(day) %>% 
-  summarize(dow_mean_activity = mean(activity),
-            dow_median_activity = median(activity),
-            dow_sd_activity = sd(activity))
-
-
-```
 Examine the possibility that day of the week affects activity (in isolation and in addition to the effect of time).
 
 
 
-### Daily activity profiles
+## Daily activity profiles
 
 Make a visualization that shows the 24-hour activity “profiles” for each day. Also visualize effects of time and day of the week on 24-hour activity profiles; incorporating smooth estimates of mean activity profiles may clarify these effects. Comment on relationships you think are interesting.
 
