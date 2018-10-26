@@ -14,7 +14,6 @@ library(tidyverse)
 library(readxl)
 library(devtools)
 library(ggridges)
-library(patchwork) #devtools::install_github("thomasp85/patchwork")
 library(wordcountaddin)
 #devtools::install_github("benmarwick/wordcountaddin", type = "source", dependencies = TRUE)
 
@@ -29,14 +28,15 @@ theme_set(theme_bw() + theme(legend.position = "bottom"))
 
 ## Introduction
 
-This project examines 47 weeks of accelerometer device data from a 63 year-old male with congestive heart failure (CHF) in order to understand patterns of physical activity over time.
+This project examines 47 weeks of accelerometer device data from a 63 year-old male with congestive heart failure with a goal of understanding patterns of physical activity over time.
 
 
 ## Accelerometer dataset description
 
 The initial dataset consists of `r read_csv(file = "./data/p8105_mtp_data.csv") %>% nrow()` observations and `r read_csv(file = "./data/p8105_mtp_data.csv") %>% ncol()` variables. This dataset  includes separate activity count variables for each minute of the day. 
 
-```{r load_activity_data, message = FALSE}
+
+```{r tidy_activity_data, message = FALSE}
 
 activity_df <- read_csv(file = "./data/p8105_mtp_data.csv") %>%
   janitor::clean_names() %>% 
@@ -51,40 +51,36 @@ activity_df
 
 ```
 
-After data wrangling, my resulting dataset consists of `r nrow(activity_df)` observations representing each minute and `r ncol(activity_df)` variables for week, day of week, minute of the day, and activity count score.  
+After data wrangling, the resulting dataset consists of `r nrow(activity_df)` observations representing each minute and `r ncol(activity_df)` variables for week, day of week, minute of the day, and activity count score.  
+
 
 A `skimr` skim review shows that there are no missing values for any of the variables, each day of the week appears 67,680 times, there are 47 weeks of data, and the mean activity count score is 240.34 with a range from 1 - 10,417.
 
-A histogram view of activity counts indicates a very right-skewed distribution with a large peak at the baseline count value  of 1. A boxplot view illustrates a large number of extreme outliers. It is unclear whether these measurements are due to periods of more intense activity or are due to instrument error. An empirical cumulative distribution function (ECDF) plot of activity shows that the distribution curve approaches `1.00` at an activity count of approximately `2500`.  
+A histogram shows a right-skewed distribution with a peak at the baseline count value  of 1. A boxplot indicates a large number of extreme outliers. A  cumulative distribution plot shows that the  curve approaches `1.00` at a count of approximately `2500`.  
 
-The value `1` appears `r activity_df %>% filter(activity == 1) %>% summarize(n = n())` times, accounting for `r ((activity_df %>% filter(activity == 1) %>% summarize(n = n())) / (nrow(activity_df))) * 100` percent of all observations. At the upper end of the distribution, there are `r activity_df %>% filter(activity > 2500) %>% summarize(n = n())` observations above `2500`, `r activity_df %>% filter(activity > 5000) %>% summarize(n = n())` above `5000`, and `r activity_df %>% filter(activity > 7500) %>% summarize(n = n())` above `7500`. 
 
-```{r}
-
-ecdf_p <- activity_df %>% 
-    ggplot(aes(x = activity)) +
-    stat_ecdf(geom = "step") +
-    labs(
-    title = "Activity count empirical \ncumulative distribution function",
-    x = "Activity count",
-    y = "Cumulative density"
-  )
-
-hist_p <- activity_df %>% 
+```{r activity_histogram}
+activity_df %>% 
   filter(activity < 2500 & activity > 1) %>% 
   ggplot(aes(x = activity)) + 
-  geom_histogram(bins = 200) +
-  labs(
-    title = "Activity count histogram \n(1 < Activity < 2500)",
-    x = "Activity count",
-    y = "Count"
-  )
-
-(ecdf_p + hist_p)
-
+    geom_histogram(binwidth = 20, 
+                   color = "black", 
+                   aes(fill = ..count..)) +
+    viridis::scale_fill_viridis(
+        name = "Count", 
+        discrete = FALSE
+      ) +
+    geom_density(aes(y = 20 * ..count..)) +
+    labs(
+      title = "Activity count histogram",
+      x = "Activity count",
+      y = "Count",
+      caption = "Counts between 1 and 2500"
+    ) +
+     theme(legend.position = "none") 
 ```
-
-
+  
+The value `1` appears `r activity_df %>% filter(activity == 1) %>% summarize(n = n())` times, accounting for `r ((activity_df %>% filter(activity == 1) %>% summarize(n = n())) / (nrow(activity_df))) * 100` percent of all observations. At the upper end of the distribution, there are `r activity_df %>% filter(activity > 2500) %>% summarize(n = n())` observations above `2500`, `r activity_df %>% filter(activity > 5000) %>% summarize(n = n())` above `5000`, and `r activity_df %>% filter(activity > 7500) %>% summarize(n = n())` above `7500`. 
 
 ```{r exploratory_not_included, include = FALSE}
 # Dataframe skimr
@@ -95,13 +91,34 @@ activity_df %>%
    ggplot(aes(x = "activity", y = activity)) + 
    geom_boxplot()
 
-```
+# ECDF
+activity_df %>%
+    ggplot(aes(x = activity)) +
+      stat_ecdf(geom = "step") +
+      labs(
+      title = "Activity count empirical \ncumulative distribution function",
+      x = "Activity count",
+      y = "Cumulative density"
+    )
 
+# Density plot
+activity_df %>%
+    filter(activity > 1 & activity < 2500) %>% 
+    ggplot(aes(x = activity)) +
+      geom_density() +
+      labs(
+      title = "Activity count density",
+      x = "Activity count",
+      y = "Density",
+      caption = "Counts > 1 and < 2500"
+      )
+
+```
 
 
 ## Activity over time
 
-I will explore the hypothesis that the participant became more active over time by first examining a scatterplot of the indexed day from 1 to 329 and the aggregated total dialy activity.  
+To assess activity over time, I first examined a scatterplot of the 329 indexed days and aggregated total daily activity.  
 
 ```{r total_daily_activity_plot}
 
@@ -120,10 +137,9 @@ activity_df %>%
       y = "Total daily activity count"
     ) 
   
-
 ```
 
-A LOESS curve and linear regression line both show increased activity over the span of the study period.  
+A LOESS curve and linear regression line both show increased activity over the span of the study period. The linear line fits the data reasonably.   
 
 
 ```{r lm_daily_activity}
@@ -140,14 +156,12 @@ activity_df %>%
 
 ```
 
-The output from a simple linear regression model shows that the activity increase over time is statistically significant. For each one day increase, the total daily activity count increases by 573 units (p < 0.00001).  
+A regression model shows that daily activity increase over time is statistically significant. For each one day increase, the total daily activity count increases by 573 units (p < 0.00001).  
 
 
 ## Day of week effect
 
-I will next examine the possibility that day of the week affects activity.
-
-First, I examine summary statistics by day of week to compare the effect in isolation.
+I examined day of week summary statistics to assess the effect in isolation.
 
 ```{r day_of_week_effect_table}
 
@@ -160,10 +174,43 @@ activity_df %>%
 
 ```
 
-A review of mean and median activity counts shows some variation by day of week, but there is not an apparent increase or decrease over the course of the week or difference between weekday and weekend.
+A review of mean and median activity counts shows some variation by day of week, but there is not an apparent increase or decrease over the course of the week.
 
-```{r}
+Boxplots and ridgeline plots by day of week display similar distribution patterns. 
 
+
+```{r day_of_week boxplot, include = FALSE}
+
+activity_df %>%
+  filter(activity > 1 & activity < 2500) %>% 
+  group_by(day) %>% 
+  ggplot(aes(x = day, y = activity)) + 
+    geom_boxplot()
+
+```
+
+
+```{r ggridges_dow, include = FALSE}
+activity_df %>%
+  group_by(week, day) %>%
+  mutate(min_index = row_number(),
+         hour_index = as.integer((min_index / 60)))  %>% 
+  ungroup %>%
+  group_by(week, day, hour_index) %>% 
+  summarize(mean_hourly = mean(activity)) %>%
+  unite(week_day, week, day, sep = "_", remove = FALSE) %>%
+  filter(mean_hourly > 1.0 & mean_hourly < 1000) %>% 
+  ggplot(aes(x = mean_hourly, y = day)) + 
+    ggridges::geom_density_ridges(scale = .85) +
+    labs(
+      title = "Day of week activity profiles",
+      x = "Mean hourly activity count"
+    )  +
+    theme(legend.position = "none") 
+```
+
+
+```{r daily_activity_dow_plot}
 activity_df %>%
   group_by(week, day) %>% 
   summarize(daily_activity = sum(activity)) %>%
@@ -183,29 +230,13 @@ activity_df %>%
     )
 ```
 
-Next, I will again plot activity over time, but include linear regression lines for each day of the week. Now, we see that activity increased over time for each day, but the slopes show that the rate increased more for the weekends than the weekdays. Saturday in particular started of with the lowest activity counts in the initial months, and ended the study period in the high end of activity. Friday activity was consistently a high activity day and Tuesday was consistently a lower activity day.   
-
-
-```{r day_of_week boxplot, include = FALSE}
-
-activity_df %>%
-  group_by(day) %>% 
-  ggplot(aes(x = day, y = activity)) + 
-    geom_boxplot()
-
-```
+Linear regression lines for each day of the week, indicate that activity increased over time for each day. The slopes show that the rate increased more for the weekends compared to weekdays. Saturday had the lowest activity counts in the initial months and ended with the highest counts. Friday activity was consistently high and Tuesday activity was consistently low.   
 
 
 ## Daily activity profiles
 
-Make a visualization that shows the 24-hour activity “profiles” for each day. Also visualize effects of time and day of the week on 24-hour activity profiles; incorporating smooth estimates of mean activity profiles may clarify these effects. Comment on relationships you think are interesting.
 
-
-
-facet_wrap(~week_day)
-
- ggplot(aes(x = activity, y = week_day)) + 
-    ggridges::geom_density_ridges(scale = .85)
+The plot below visualizes the profile of hourly activity for each day, with a LOESS curve indicating the overall pattern. We see the participant's activity gradually increase from midnight to around 10 AM, and then remain steady until around 5:30 PM, when it begins to decline for the evening.
 
 
 ```{r 24_hour_activity}
@@ -233,6 +264,8 @@ activity_df %>%
     theme(legend.position = "none") 
 
 ```
+  
+Over 10-week periods, the daily 24-hour patterns appears similar, but counts grow larger by the fifth 10-week period. The day of the week profile patterns are also similar, but indicate that the participant stay active later in the evening on Fridays and reduces activity earlier on Sundays. 
 
 
 ```{r 24_hour_profiles_dow_facet}
@@ -250,7 +283,7 @@ activity_df %>%
     geom_smooth(method = loess, se = TRUE, size = 1.0) +
     facet_wrap(~day) +
     labs(
-      title = "Daily activity profiles",
+      title = "Daily activity profiles by day of week",
       x = "Hour of day",
       y = "Mean hourly activity count"
     ) + 
@@ -261,92 +294,32 @@ activity_df %>%
     theme(legend.position = "none") 
 ```
 
-
-
-```{r ggridges_dow, include = FALSE}
+```{r 24_hour_profiles_over_time, include = FALSE}
 activity_df %>%
   group_by(week, day) %>%
   mutate(min_index = row_number(),
-         hour_index = as.integer((min_index / 60)))  %>% 
+         hour_index = as.integer((min_index / 60))) %>% 
   ungroup %>%
   group_by(week, day, hour_index) %>% 
   summarize(mean_hourly = mean(activity)) %>%
   unite(week_day, week, day, sep = "_", remove = FALSE) %>%
-  filter(mean_hourly < 1000) %>% 
-  ggplot(aes(x = mean_hourly, y = day)) + 
-    ggridges::geom_density_ridges(scale = .85) +
+  mutate(ten_week_index = as.integer((week / 10) + 1)) %>% 
+  filter(mean_hourly < 2000) %>% 
+  ggplot(aes(x = hour_index, y = mean_hourly)) + 
+    geom_line(aes(color = week_day, alpha = 0.1), size = 0.1) +
+    geom_smooth(method = loess, se = TRUE, size = 1.0) +
+    facet_wrap(~ten_week_index) +
     labs(
-      title = "Daily activity profiles",
-      x = "Mean hourly activity count"
-    )  +
-    theme(legend.position = "none") 
-```
-
-
-```{r daily_activity_profile, include = FALSE}
-activity_df %>%
-  group_by(week, day) %>%
-  mutate(min_index = row_number()) %>% 
-  ungroup %>%
-  unite(week_day, week, day, sep = "_", remove = FALSE) %>% 
-  ggplot(aes(x = min_index, y = activity, color = week_day)) + 
-    geom_point(alpha = 0.1) +
-     geom_smooth(method = loess, se = TRUE, size = 0.2) +
-    labs(
-      title = "Daily activity profiles",
-      x = "Minute of day",
-      y = "Activity count"
+      title = "Daily activity profiles by 10-week period",
+      x = "Hour of day",
+      y = "Mean hourly activity count"
     ) + 
     viridis::scale_color_viridis(
       name = "Day", 
       discrete = TRUE
     ) +
-     theme(legend.position = "none") 
-
-
-
-activity_df %>%
-  filter(activity < 1000) %>% 
-  group_by(week, day) %>%
-  mutate(min_index = row_number()) %>% 
-  ungroup %>%
-  unite(week_day, week, day, sep = "_", remove = FALSE) %>% 
-  ggplot(aes(x = min_index, y = activity, color = week_day)) + 
-    geom_point(alpha = 0.1, size = 0.1) +
-    geom_line(alpha = 0.1, size = 0.1) +
-    labs(
-      title = "Daily activity profiles",
-      x = "Minute of day",
-      y = "Activity count"
-    ) + 
-    viridis::scale_color_viridis(
-      name = "Day", 
-      discrete = TRUE
-    )  
-
-
-
+    theme(legend.position = "none") 
 ```
-
-```{r daily_activity_profiles, include = FALSE}
-activity_df %>%
-  group_by(week, day) %>%
-  mutate(min_index = row_number()) %>% 
-  ggplot(aes(x = min_index, y = activity)) + 
-    geom_point(aes(color = day), alpha = .5) + 
-    labs(
-      title = "Daily activity profiles",
-      x = "Minute of day",
-      y = "Activity count"
-    ) + 
-    viridis::scale_color_viridis(
-      name = "Day of Week", 
-      discrete = TRUE
-    )
-
-
-```
-
 
 
 ```{r word count}
