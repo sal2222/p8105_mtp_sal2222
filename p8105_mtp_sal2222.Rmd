@@ -13,6 +13,7 @@ output:
 library(tidyverse)
 library(readxl)
 library(devtools)
+library(ggridges)
 library(patchwork) #devtools::install_github("thomasp85/patchwork")
 library(wordcountaddin)
 #devtools::install_github("benmarwick/wordcountaddin", type = "source", dependencies = TRUE)
@@ -28,7 +29,7 @@ theme_set(theme_bw() + theme(legend.position = "bottom"))
 
 ## Introduction
 
-
+This project examines 47 weeks of accelerometer device data from a 63 year-old male with congestive heart failure (CHF) in order to understand patterns of physical activity over time.
 
 
 ## Accelerometer dataset description
@@ -98,8 +99,6 @@ activity_df %>%
 
 
 
-
-
 ## Activity over time
 
 I will explore the hypothesis that the participant became more active over time by first examining a scatterplot of the indexed day from 1 to 329 and the aggregated total dialy activity.  
@@ -112,14 +111,14 @@ activity_df %>%
   ungroup() %>% 
   mutate(day_index = row_number()) %>% 
   ggplot(aes(x = day_index, y = daily_activity)) + 
-  geom_point(alpha = .5) +
-  geom_smooth(method = lm, se = TRUE) +
-  geom_smooth(method = loess, se = FALSE, color = "black", size = 0.5) +
-  labs(
-    title = "Daily activity over time",
-    x = "Indexed day",
-    y = "Total daily activity count"
-  ) 
+    geom_point(alpha = .5) +
+    geom_smooth(method = lm, se = TRUE) +
+    geom_smooth(method = loess, se = FALSE, color = "black", size = 0.5) +
+    labs(
+      title = "Daily activity over time",
+      x = "Indexed day",
+      y = "Total daily activity count"
+    ) 
   
 
 ```
@@ -171,17 +170,17 @@ activity_df %>%
   ungroup() %>% 
   mutate(day_index = row_number()) %>% 
   ggplot(aes(x = day_index, y = daily_activity, color = day)) + 
-  geom_point(alpha = .5) +
-  geom_smooth(method = lm, se = FALSE, size = 0.5) +
-  labs(
-    title = "Daily activity over time by day of week",
-    x = "Indexed day",
-    y = "Total daily activity count"
-  ) + 
-  viridis::scale_color_viridis(
-    name = "Day of Week", 
-    discrete = TRUE
-  )
+    geom_point(alpha = .5) +
+    geom_smooth(method = lm, se = FALSE, size = 0.5) +
+    labs(
+      title = "Daily activity over time by day of week",
+      x = "Indexed day",
+      y = "Total daily activity count"
+    ) + 
+    viridis::scale_color_viridis(
+      name = "Day of Week", 
+      discrete = TRUE
+    )
 ```
 
 Next, I will again plot activity over time, but include linear regression lines for each day of the week. Now, we see that activity increased over time for each day, but the slopes show that the rate increased more for the weekends than the weekdays. Saturday in particular started of with the lowest activity counts in the initial months, and ended the study period in the high end of activity. Friday activity was consistently a high activity day and Tuesday was consistently a lower activity day.   
@@ -201,44 +200,149 @@ activity_df %>%
 
 Make a visualization that shows the 24-hour activity “profiles” for each day. Also visualize effects of time and day of the week on 24-hour activity profiles; incorporating smooth estimates of mean activity profiles may clarify these effects. Comment on relationships you think are interesting.
 
-```{r daily_activity_profile}
+
+
+facet_wrap(~week_day)
+
+ ggplot(aes(x = activity, y = week_day)) + 
+    ggridges::geom_density_ridges(scale = .85)
+
+
+```{r 24_hour_activity}
+activity_df %>%
+  group_by(week, day) %>%
+  mutate(min_index = row_number(),
+         hour_index = as.integer((min_index / 60)))  %>% 
+  ungroup %>%
+  group_by(week, day, hour_index) %>% 
+  summarize(mean_hourly = mean(activity)) %>%
+  unite(week_day, week, day, sep = "_", remove = FALSE) %>%
+  filter(mean_hourly < 2000) %>% 
+  ggplot(aes(x = hour_index, y = mean_hourly)) + 
+    geom_line(aes(color = week_day, alpha = 0.1), size = 0.1) +
+    geom_smooth(method = loess, se = TRUE, size = 1.0) +
+    labs(
+      title = "Daily activity profiles",
+      x = "Hour of day",
+      y = "Mean hourly activity count"
+    ) + 
+    viridis::scale_color_viridis(
+      name = "Day", 
+      discrete = TRUE
+    ) +
+    theme(legend.position = "none") 
+
+```
+
+
+```{r 24_hour_profiles_dow_facet}
+activity_df %>%
+  group_by(week, day) %>%
+  mutate(min_index = row_number(),
+         hour_index = as.integer((min_index / 60)))  %>% 
+  ungroup %>%
+  group_by(week, day, hour_index) %>% 
+  summarize(mean_hourly = mean(activity)) %>%
+  unite(week_day, week, day, sep = "_", remove = FALSE) %>%
+  filter(mean_hourly < 2000) %>% 
+  ggplot(aes(x = hour_index, y = mean_hourly)) + 
+    geom_line(aes(color = week_day, alpha = 0.1), size = 0.1) +
+    geom_smooth(method = loess, se = TRUE, size = 1.0) +
+    facet_wrap(~day) +
+    labs(
+      title = "Daily activity profiles",
+      x = "Hour of day",
+      y = "Mean hourly activity count"
+    ) + 
+    viridis::scale_color_viridis(
+      name = "Day", 
+      discrete = TRUE
+    ) +
+    theme(legend.position = "none") 
+```
+
+
+
+```{r ggridges_dow, include = FALSE}
+activity_df %>%
+  group_by(week, day) %>%
+  mutate(min_index = row_number(),
+         hour_index = as.integer((min_index / 60)))  %>% 
+  ungroup %>%
+  group_by(week, day, hour_index) %>% 
+  summarize(mean_hourly = mean(activity)) %>%
+  unite(week_day, week, day, sep = "_", remove = FALSE) %>%
+  filter(mean_hourly < 1000) %>% 
+  ggplot(aes(x = mean_hourly, y = day)) + 
+    ggridges::geom_density_ridges(scale = .85) +
+    labs(
+      title = "Daily activity profiles",
+      x = "Mean hourly activity count"
+    )  +
+    theme(legend.position = "none") 
+```
+
+
+```{r daily_activity_profile, include = FALSE}
 activity_df %>%
   group_by(week, day) %>%
   mutate(min_index = row_number()) %>% 
   ungroup %>%
   unite(week_day, week, day, sep = "_", remove = FALSE) %>% 
   ggplot(aes(x = min_index, y = activity, color = week_day)) + 
-  geom_point(alpha = 0.3) +
-   geom_smooth(method = loess, se = FALSE, size = 0.2) +
-  labs(
-    title = "Daily activity profiles",
-    x = "Minute of day",
-    y = "Activity count"
-  ) + 
-  viridis::scale_color_viridis(
-    name = "Day of Week", 
-    discrete = TRUE
-  ) +
-   theme(legend.position = "none")
+    geom_point(alpha = 0.1) +
+     geom_smooth(method = loess, se = TRUE, size = 0.2) +
+    labs(
+      title = "Daily activity profiles",
+      x = "Minute of day",
+      y = "Activity count"
+    ) + 
+    viridis::scale_color_viridis(
+      name = "Day", 
+      discrete = TRUE
+    ) +
+     theme(legend.position = "none") 
+
+
+
+activity_df %>%
+  filter(activity < 1000) %>% 
+  group_by(week, day) %>%
+  mutate(min_index = row_number()) %>% 
+  ungroup %>%
+  unite(week_day, week, day, sep = "_", remove = FALSE) %>% 
+  ggplot(aes(x = min_index, y = activity, color = week_day)) + 
+    geom_point(alpha = 0.1, size = 0.1) +
+    geom_line(alpha = 0.1, size = 0.1) +
+    labs(
+      title = "Daily activity profiles",
+      x = "Minute of day",
+      y = "Activity count"
+    ) + 
+    viridis::scale_color_viridis(
+      name = "Day", 
+      discrete = TRUE
+    )  
+
 
 
 ```
 
-```{r daily_activity_profiles}
+```{r daily_activity_profiles, include = FALSE}
 activity_df %>%
   group_by(week, day) %>%
   mutate(min_index = row_number()) %>% 
   ggplot(aes(x = min_index, y = activity)) + 
-  geom_point(aes(color = day), alpha = .5) + 
-  labs(
-    title = "Daily activity profiles",
-    x = "Minute of day",
-    y = "Activity count"
-  ) + 
-  viridis::scale_color_viridis(
-    name = "Day of Week", 
-    discrete = TRUE
-  )
+    geom_point(aes(color = day), alpha = .5) + 
+    labs(
+      title = "Daily activity profiles",
+      x = "Minute of day",
+      y = "Activity count"
+    ) + 
+    viridis::scale_color_viridis(
+      name = "Day of Week", 
+      discrete = TRUE
+    )
 
 
 ```
